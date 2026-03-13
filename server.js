@@ -3,23 +3,57 @@ require("dotenv").config()
 const express = require("express")
 const axios = require("axios")
 const crypto = require("crypto")
-const fs = require("fs")
-const path = require("path")
+const mongoose = require("mongoose")
 
 const app = express()
 
-const paymentsFile = path.join(__dirname, "logs", "payments.json")
+/*
+---------------------------------------
+MONGODB CONNECTION
+---------------------------------------
+*/
+mongoose.connect(process.env.MONGO_URI)
+.then(()=>{
+console.log("MongoDB connected")
+})
+.catch(err=>{
+console.error("MongoDB connection error:", err)
+})
 
-// middleware
+/*
+---------------------------------------
+PAYMENT MODEL
+---------------------------------------
+*/
+const paymentSchema = new mongoose.Schema({
+
+reference:{type:String, unique:true},
+email:String,
+amount:Number,
+site:String,
+date:{
+type:Date,
+default:Date.now
+}
+
+})
+
+const Payment = mongoose.model("Payment", paymentSchema)
+
+/*
+---------------------------------------
+MIDDLEWARE
+---------------------------------------
+*/
 app.use(express.json())
 app.use(express.static("docs"))
 
 /*
 ---------------------------------------
-CREATE PAYMENT (for external websites)
+CREATE PAYMENT
 ---------------------------------------
 */
-app.post("/create-payment", (req,res)=>{
+app.post("/create-payment",(req,res)=>{
 
 const {email, amount, site, callback_url} = req.body
 
@@ -38,7 +72,6 @@ callback_url
 })
 
 })
-
 
 /*
 ---------------------------------------
@@ -88,7 +121,6 @@ res.status(500).send("Verification failed")
 
 })
 
-
 /*
 ---------------------------------------
 PAYSTACK WEBHOOK (SECURE)
@@ -101,7 +133,7 @@ verify:(req,res,buf)=>{
 req.rawBody = buf
 }
 }),
-(req,res)=>{
+async (req,res)=>{
 
 const secret = process.env.PAYSTACK_SECRET_KEY
 
@@ -126,33 +158,32 @@ const email = event.data.customer.email
 const amount = event.data.amount
 const site = event.data.metadata?.site || "unknown"
 
-let payments = []
-
-if(fs.existsSync(paymentsFile)){
-payments = JSON.parse(fs.readFileSync(paymentsFile))
-}
+try{
 
 // prevent duplicate transactions
-const exists = payments.find(p => p.reference === reference)
+const existing = await Payment.findOne({reference})
 
-if(exists){
+if(existing){
 console.log("Duplicate webhook ignored:", reference)
 return res.sendStatus(200)
 }
 
-const paymentRecord = {
+const payment = new Payment({
 reference,
 email,
 amount,
-site,
-date:new Date().toISOString()
+site
+})
+
+await payment.save()
+
+console.log("Payment stored in MongoDB:", reference)
+
+}catch(err){
+
+console.error("Database error:", err)
+
 }
-
-payments.push(paymentRecord)
-
-fs.writeFileSync(paymentsFile, JSON.stringify(payments,null,2))
-
-console.log("Payment logged:", paymentRecord)
 
 }
 
@@ -160,12 +191,13 @@ res.sendStatus(200)
 
 })
 
-
 /*
 ---------------------------------------
 START SERVER
 ---------------------------------------
 */
-app.listen(3000, ()=>{
-console.log("Payment API running on port 3000")
+const PORT = process.env.PORT || 3000
+
+app.listen(PORT, ()=>{
+console.log(`Payment API running on port ${PORT}`)
 })
