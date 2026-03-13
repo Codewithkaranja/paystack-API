@@ -13,11 +13,13 @@ MONGODB CONNECTION
 ---------------------------------------
 */
 mongoose.connect(process.env.MONGO_URI)
-.then(()=>{
-console.log("MongoDB connected")
+
+mongoose.connection.on("connected", () => {
+  console.log("MongoDB connected")
 })
-.catch(err=>{
-console.error("MongoDB connection error:", err)
+
+mongoose.connection.on("error", (err) => {
+  console.error("MongoDB connection error:", err)
 })
 
 /*
@@ -26,16 +28,14 @@ PAYMENT MODEL
 ---------------------------------------
 */
 const paymentSchema = new mongoose.Schema({
-
-reference:{type:String, unique:true},
-email:String,
-amount:Number,
-site:String,
-date:{
-type:Date,
-default:Date.now
-}
-
+  reference: { type: String, unique: true },
+  email: String,
+  amount: Number,
+  site: String,
+  date: {
+    type: Date,
+    default: Date.now
+  }
 })
 
 const Payment = mongoose.model("Payment", paymentSchema)
@@ -47,6 +47,15 @@ MIDDLEWARE
 */
 app.use(express.json())
 app.use(express.static("docs"))
+
+/*
+---------------------------------------
+HEALTH CHECK (RENDER)
+---------------------------------------
+*/
+app.get("/status", (req,res)=>{
+  res.json({status:"Payment API running"})
+})
 
 /*
 ---------------------------------------
@@ -102,7 +111,7 @@ const callback = data.metadata?.callback_url
 console.log("Payment verified:", reference)
 
 if(callback){
-return res.redirect(callback + "?reference=" + reference)
+return res.redirect(`${callback}?reference=${reference}`)
 }
 
 return res.send("Payment verified")
@@ -160,7 +169,6 @@ const site = event.data.metadata?.site || "unknown"
 
 try{
 
-// prevent duplicate transactions
 const existing = await Payment.findOne({reference})
 
 if(existing){
