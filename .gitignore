@@ -1,0 +1,16 @@
+# dependencies
+node_modules/
+
+# environment variables (secrets)
+.env
+
+# logs and runtime files
+logs/
+*.log
+
+# local payment records
+payments.json
+
+# OS / editor files
+.DS_Store
+.vscode/
