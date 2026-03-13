@@ -1,17 +1,22 @@
 {
   "name": "paystack-api",
   "version": "1.0.0",
-  "description": "",
+  "description": "Multi-site Paystack payment API",
   "main": "server.js",
-  "directories": {
-    "doc": "docs"
-  },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node server.js"
+    "start": "node server.js",
+    "dev": "node server.js"
   },
-  "keywords": [],
-  "author": "",
+  "engines": {
+    "node": "20.x"
+  },
+  "keywords": [
+    "paystack",
+    "payments",
+    "api",
+    "nodejs"
+  ],
+  "author": "CodeWithKaranja",
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
